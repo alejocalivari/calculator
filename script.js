@@ -2,6 +2,11 @@ const statusDisplay = document.querySelector(".display__memory");
 const expressionDisplay = document.querySelector(".display__expression");
 const valueDisplay = document.querySelector(".display__value");
 const buttons = document.querySelectorAll(".key");
+const historyList = document.querySelector(".history-list");
+const historyEmpty = document.querySelector(".history-panel__empty");
+const clearHistoryButton = document.querySelector(".history-panel__clear");
+const themeToggleButton = document.querySelector(".theme-toggle");
+const themeToggleText = document.querySelector(".theme-toggle__text");
 
 const operatorSymbols = {
   "+": "+",
@@ -11,6 +16,31 @@ const operatorSymbols = {
 };
 
 const MAX_INPUT_LENGTH = 12;
+const MAX_HISTORY_ITEMS = 12;
+const HISTORY_STORAGE_KEY = "calculator-history";
+const THEME_STORAGE_KEY = "calculator-theme";
+const keyButtonMap = new Map();
+
+const keyboardAliases = {
+  Enter: "=",
+  "=": "=",
+  Escape: "C",
+  Delete: "C",
+  c: "C",
+  C: "C",
+  Backspace: "Backspace",
+  "%": "%",
+  ".": ".",
+  ",": ".",
+  "+": "+",
+  "-": "-",
+  "*": "*",
+  x: "*",
+  X: "*",
+  "/": "/",
+};
+
+let historyEntries = loadHistory();
 
 const state = {
   displayValue: "0",
@@ -34,6 +64,128 @@ function clearAll(shouldRender = true) {
   if (shouldRender) {
     updateDisplay();
   }
+}
+
+function loadTheme() {
+  try {
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+
+    if (savedTheme === "light" || savedTheme === "dark") {
+      return savedTheme;
+    }
+  } catch {
+    // Ignore storage failures and use the fallback theme.
+  }
+
+  return "dark";
+}
+
+function saveTheme(theme) {
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // Ignore storage failures so the toggle still works for the current session.
+  }
+}
+
+function applyTheme(theme) {
+  const normalizedTheme = theme === "dark" ? "dark" : "light";
+  const isDark = normalizedTheme === "dark";
+
+  document.body.dataset.theme = normalizedTheme;
+  themeToggleButton.setAttribute("aria-pressed", String(isDark));
+  themeToggleText.textContent = isDark ? "Dark" : "Light";
+}
+
+function toggleTheme() {
+  const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
+
+  applyTheme(nextTheme);
+  saveTheme(nextTheme);
+}
+
+function normalizeButtonValue(button) {
+  return button.dataset.value || button.textContent.trim();
+}
+
+function buildKeyButtonMap() {
+  buttons.forEach((button) => {
+    keyButtonMap.set(normalizeButtonValue(button), button);
+  });
+
+  keyButtonMap.set("Backspace", keyButtonMap.get("C"));
+}
+
+function loadHistory() {
+  try {
+    const savedHistory = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+
+    if (!savedHistory) {
+      return [];
+    }
+
+    const parsedHistory = JSON.parse(savedHistory);
+
+    if (!Array.isArray(parsedHistory)) {
+      return [];
+    }
+
+    return parsedHistory
+      .filter((entry) => entry && typeof entry.expression === "string" && typeof entry.result === "string")
+      .slice(0, MAX_HISTORY_ITEMS);
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory() {
+  try {
+    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(historyEntries));
+  } catch {
+    // Ignore storage failures so the calculator remains usable.
+  }
+}
+
+function renderHistory() {
+  historyList.textContent = "";
+
+  if (historyEntries.length === 0) {
+    historyEmpty.hidden = false;
+    clearHistoryButton.disabled = true;
+    return;
+  }
+
+  historyEmpty.hidden = true;
+  clearHistoryButton.disabled = false;
+
+  historyEntries.forEach((entry) => {
+    const item = document.createElement("li");
+    const expression = document.createElement("p");
+    const result = document.createElement("p");
+
+    item.className = "history-item";
+    expression.className = "history-item__expression";
+    result.className = "history-item__result";
+
+    expression.textContent = entry.expression;
+    result.textContent = `= ${entry.result}`;
+
+    item.append(expression, result);
+    historyList.append(item);
+  });
+}
+
+function addHistoryEntry(expression, result) {
+  historyEntries.unshift({ expression, result });
+  historyEntries = historyEntries.slice(0, MAX_HISTORY_ITEMS);
+  saveHistory();
+  renderHistory();
+}
+
+function clearHistory() {
+  historyEntries = [];
+  saveHistory();
+  renderHistory();
 }
 
 function roundResult(value) {
@@ -99,11 +251,33 @@ function updateDisplay() {
 
 function syncActiveOperator() {
   buttons.forEach((button) => {
-    const normalizedOperator = button.dataset.value || button.textContent.trim();
+    const normalizedOperator = normalizeButtonValue(button);
     const isActive = state.pendingOperator === normalizedOperator && state.awaitingSecondOperand;
 
     button.classList.toggle("is-active", isActive);
   });
+}
+
+function setPressedKeyVisual(value, isPressed) {
+  const button = keyButtonMap.get(value);
+
+  if (!button) {
+    return;
+  }
+
+  button.classList.toggle("is-pressed", isPressed);
+}
+
+function normalizeKeyboardValue(event) {
+  if (/^Digit\d$/.test(event.code) || /^Numpad\d$/.test(event.code)) {
+    return event.key;
+  }
+
+  if (event.code === "NumpadDecimal") {
+    return ".";
+  }
+
+  return keyboardAliases[event.key] || null;
 }
 
 function beginNewEntryIfNeeded() {
@@ -213,6 +387,7 @@ function handleEquals() {
     const firstDisplay = formatNumber(state.firstOperand);
     const secondDisplay = formatNumber(secondOperand);
     const operator = state.pendingOperator;
+    const historyExpression = `${firstDisplay} ${operatorSymbols[operator]} ${secondDisplay}`;
     const result = performCalculation(state.firstOperand, secondOperand, operator);
 
     if (result === null) {
@@ -227,28 +402,31 @@ function handleEquals() {
     state.repeatOperand = secondOperand;
     state.status = "RESULT";
 
-    expressionDisplay.textContent = `${firstDisplay} ${operatorSymbols[operator]} ${secondDisplay}`;
+    expressionDisplay.textContent = historyExpression;
     valueDisplay.textContent = state.displayValue;
     statusDisplay.textContent = state.status;
     syncActiveOperator();
+    addHistoryEntry(historyExpression, state.displayValue);
     return;
   }
 
   if (state.repeatOperator !== null && state.repeatOperand !== null) {
     const currentValue = Number(state.displayValue);
+    const historyExpression =
+      `${formatNumber(currentValue)} ${operatorSymbols[state.repeatOperator]} ${formatNumber(state.repeatOperand)}`;
     const result = performCalculation(currentValue, state.repeatOperand, state.repeatOperator);
 
     if (result === null) {
       return;
     }
 
-    expressionDisplay.textContent =
-      `${formatNumber(currentValue)} ${operatorSymbols[state.repeatOperator]} ${formatNumber(state.repeatOperand)}`;
+    expressionDisplay.textContent = historyExpression;
     state.displayValue = formatNumber(result);
     state.status = "RESULT";
     valueDisplay.textContent = state.displayValue;
     statusDisplay.textContent = state.status;
     syncActiveOperator();
+    addHistoryEntry(historyExpression, state.displayValue);
     return;
   }
 
@@ -337,6 +515,11 @@ function handleButtonClick(value) {
     return;
   }
 
+  if (value === "Backspace") {
+    deleteLastDigit();
+    return;
+  }
+
   if (value === "+" || value === "-" || value === "*" || value === "/") {
     chooseOperator(value);
   }
@@ -344,53 +527,47 @@ function handleButtonClick(value) {
 
 buttons.forEach((button) => {
   button.addEventListener("click", () => {
-    handleButtonClick(button.dataset.value || button.textContent.trim());
+    handleButtonClick(normalizeButtonValue(button));
   });
 });
 
+buildKeyButtonMap();
+clearHistoryButton.addEventListener("click", clearHistory);
+themeToggleButton.addEventListener("click", toggleTheme);
+
 document.addEventListener("keydown", (event) => {
-  const { key } = event;
+  const normalizedValue = normalizeKeyboardValue(event);
 
-  if (/^\d$/.test(key)) {
-    event.preventDefault();
-    inputDigit(key);
+  if (normalizedValue === null) {
     return;
   }
 
-  if (key === ".") {
-    event.preventDefault();
-    inputDecimal();
+  event.preventDefault();
+  setPressedKeyVisual(normalizedValue, true);
+
+  if (event.repeat && normalizedValue === "=") {
     return;
   }
 
-  if (key === "+" || key === "-" || key === "*" || key === "/") {
-    event.preventDefault();
-    chooseOperator(key);
-    return;
-  }
-
-  if (key === "Enter" || key === "=") {
-    event.preventDefault();
-    handleEquals();
-    return;
-  }
-
-  if (key === "Escape" || key.toLowerCase() === "c") {
-    event.preventDefault();
-    clearAll();
-    return;
-  }
-
-  if (key === "%") {
-    event.preventDefault();
-    convertToPercent();
-    return;
-  }
-
-  if (key === "Backspace") {
-    event.preventDefault();
-    deleteLastDigit();
-  }
+  handleButtonClick(normalizedValue);
 });
 
+document.addEventListener("keyup", (event) => {
+  const normalizedValue = normalizeKeyboardValue(event);
+
+  if (normalizedValue === null) {
+    return;
+  }
+
+  setPressedKeyVisual(normalizedValue, false);
+});
+
+window.addEventListener("blur", () => {
+  buttons.forEach((button) => {
+    button.classList.remove("is-pressed");
+  });
+});
+
+applyTheme(loadTheme());
+renderHistory();
 updateDisplay();
