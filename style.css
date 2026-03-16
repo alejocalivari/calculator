@@ -1,0 +1,238 @@
+:root {
+  --bg-top: #f7e9d7;
+  --bg-bottom: #e2efff;
+  --panel: rgba(18, 24, 38, 0.9);
+  --panel-edge: rgba(255, 255, 255, 0.14);
+  --screen: linear-gradient(180deg, #faf7f0 0%, #e4ddd2 100%);
+  --text-main: #f7f2ea;
+  --text-dim: rgba(247, 242, 234, 0.72);
+  --key: rgba(255, 255, 255, 0.08);
+  --key-border: rgba(255, 255, 255, 0.12);
+  --key-strong: rgba(255, 255, 255, 0.14);
+  --accent: #ff8c42;
+  --accent-strong: #ff6b1a;
+  --shadow: 0 30px 80px rgba(14, 18, 29, 0.24);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Century Gothic", "Trebuchet MS", sans-serif;
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(255, 140, 66, 0.25), transparent 25%),
+    linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
+}
+
+.page-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+}
+
+.calculator {
+  position: relative;
+  width: min(100%, 380px);
+  padding: 24px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 32px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%),
+    var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: card-rise 700ms ease-out both;
+}
+
+.calculator__glow {
+  position: absolute;
+  inset: -120px auto auto -80px;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(255, 140, 66, 0.34), transparent 68%);
+  pointer-events: none;
+}
+
+.calculator__topbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.calculator__label {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.calculator__status {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.calculator__status span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.calculator__status span:first-child {
+  background: #ff5f57;
+}
+
+.calculator__status span:nth-child(2) {
+  background: #febb2f;
+}
+
+.calculator__status span:last-child {
+  background: #28c840;
+}
+
+.display {
+  position: relative;
+  padding: 24px 22px;
+  margin-bottom: 20px;
+  border-radius: 24px;
+  background: var(--screen);
+  color: #1f2937;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -12px 20px rgba(58, 46, 33, 0.08);
+}
+
+.display__memory,
+.display__expression,
+.display__value {
+  margin: 0;
+}
+
+.display__memory {
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  color: rgba(31, 41, 55, 0.55);
+}
+
+.display__expression {
+  margin-top: 24px;
+  font-size: 1rem;
+  color: rgba(31, 41, 55, 0.66);
+  min-height: 1.25em;
+  overflow-wrap: anywhere;
+}
+
+.display__value {
+  margin-top: 10px;
+  font-size: clamp(2.8rem, 10vw, 4rem);
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.key {
+  min-height: 68px;
+  border: 1px solid var(--key-border);
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--key-strong), var(--key));
+  color: var(--text-main);
+  font: inherit;
+  font-size: 1.35rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 10px 20px rgba(0, 0, 0, 0.16);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.key:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 14px 24px rgba(0, 0, 0, 0.18);
+}
+
+.key:focus-visible {
+  outline: 2px solid rgba(255, 215, 164, 0.95);
+  outline-offset: 2px;
+}
+
+.key:active {
+  transform: translateY(1px);
+}
+
+.key--soft {
+  color: #ffd7a4;
+}
+
+.key--accent {
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fff7ef;
+}
+
+.key.is-active {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 0 2px rgba(255, 247, 239, 0.2),
+    0 14px 24px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.key--equals {
+  font-size: 1.6rem;
+}
+
+.key--wide {
+  grid-column: span 2;
+}
+
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 420px) {
+  .calculator {
+    padding: 20px;
+    border-radius: 28px;
+  }
+
+  .display {
+    padding: 20px 18px;
+  }
+
+  .key {
+    min-height: 62px;
+    border-radius: 18px;
+  }
+}
