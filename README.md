@@ -11,6 +11,3 @@ Simple calculator built with HTML, CSS and JavaScript.
 HTML
 CSS
 JavaScript
-
-## Demo
-link
